@@ -144,45 +144,76 @@ export const handler = metricScope(metrics => async (event: ScheduledEvent, cont
     const queryStartTimestamp = new Date().getTime();
 
     // Run session aggregation query: Create a table with all sessions for the given date
-    const sessionAggregationQuery = createSessionAggregation(S3_INPUT_BUCKET_NAME!, S3_INPUT_PREFIX!, yesterdayDate);
-    requestLogger.debug({ sessionAggregationQuery });
+    try {
+      const sessionAggregationQuery = createSessionAggregation(S3_INPUT_BUCKET_NAME!, S3_INPUT_PREFIX!, yesterdayDate);
+      requestLogger.debug({ sessionAggregationQuery });
 
-    const sessionAggregationQueryResult = await query(sessionAggregationQuery);
-    requestLogger.debug({ sessionAggregationQueryResult });
+      const sessionAggregationQueryResult = await query(sessionAggregationQuery);
+      requestLogger.debug({ sessionAggregationQueryResult });
 
-    // Run stats aggregation query: Writes a Parquet file with all stats for the given date to the S3 output bucket
-    const statsAggregationQuery = createStatsAggregation(S3_INPUT_BUCKET_NAME!, S3_OUTPUT_BUCKET_NAME!, S3_INPUT_PREFIX!, `${S3_OUTPUT_PREFIX}/stats`, yesterdayDate);
-    requestLogger.debug({ statsAggregationQuery });
+      // Run stats aggregation query: Writes a Parquet file with all stats for the given date to the S3 output bucket
+      const statsAggregationQuery = createStatsAggregation(S3_INPUT_BUCKET_NAME!, S3_OUTPUT_BUCKET_NAME!, S3_INPUT_PREFIX!, `${S3_OUTPUT_PREFIX}/stats`, yesterdayDate);
+      requestLogger.debug({ statsAggregationQuery });
 
-    const statsAggregationQueryResult = await query(statsAggregationQuery);
-    requestLogger.debug({ statsAggregationQueryResult });
+      const statsAggregationQueryResult = await query(statsAggregationQuery);
+      requestLogger.debug({ statsAggregationQueryResult });
 
-    // Run event aggregation query
-    const eventAggregationQuery = createEventAggregation(S3_INPUT_BUCKET_NAME!, S3_OUTPUT_BUCKET_NAME!, S3_INPUT_PREFIX!, `${S3_OUTPUT_PREFIX}/events`, yesterdayDate);
-    requestLogger.debug({ statsAggregationQuery });
+      // Run event aggregation query
+      const eventAggregationQuery = createEventAggregation(S3_INPUT_BUCKET_NAME!, S3_OUTPUT_BUCKET_NAME!, S3_INPUT_PREFIX!, `${S3_OUTPUT_PREFIX}/events`, yesterdayDate);
+      requestLogger.debug({ statsAggregationQuery });
 
-    const eventAggregationQueryResult = await query(eventAggregationQuery);
-    requestLogger.debug({ eventAggregationQueryResult });
+      const eventAggregationQueryResult = await query(eventAggregationQuery);
+      requestLogger.debug({ eventAggregationQueryResult });
 
-    // Determine whether there needs to be a full load of the stats data
-    if (!hasExistingData || latestEventDate !== dayBeforeYesterdayDate) {
-      // Load complete stats data
-      const loadStatsQuery = getAggregatedStatsData(S3_OUTPUT_BUCKET_NAME!, S3_OUTPUT_PREFIX!);
-      requestLogger.debug({ loadStatsQuery });
+      // Determine whether there needs to be a full load of the stats data
+      if (!hasExistingData || latestEventDate !== dayBeforeYesterdayDate) {
+        // Load complete stats data
+        const loadStatsQuery = getAggregatedStatsData(S3_OUTPUT_BUCKET_NAME!, S3_OUTPUT_PREFIX!);
+        requestLogger.debug({ loadStatsQuery });
 
-      const loadStatsQueryResult = await query(loadStatsQuery);
-      requestLogger.debug({ loadStatsQueryResult });
-    } else {
-      // Insert the existing stats data from the temporary database
-      const insertExistingDataQuery = `CREATE TABLE ${databaseName}.aggregated_stats AS SELECT * FROM ${temporaryDatabaseName}.aggregated_stats;`;
-      requestLogger.debug({ insertExistingDataQuery });
+        const loadStatsQueryResult = await query(loadStatsQuery);
+        requestLogger.debug({ loadStatsQueryResult });
+      } else {
+        // Insert the existing stats data from the temporary database
+        const insertExistingDataQuery = `CREATE TABLE ${databaseName}.aggregated_stats AS SELECT * FROM ${temporaryDatabaseName}.aggregated_stats;`;
+        requestLogger.debug({ insertExistingDataQuery });
 
-      const insertExistingDataQueryResult = await query(insertExistingDataQuery);
-      requestLogger.debug({ insertExistingDataQueryResult });
+        const insertExistingDataQueryResult = await query(insertExistingDataQuery);
+        requestLogger.debug({ insertExistingDataQueryResult });
 
-      await query(addAggregatedStatsData(S3_OUTPUT_BUCKET_NAME!, S3_OUTPUT_PREFIX!, yesterdayDate, yesterdayDate));
-      requestLogger.debug({ message: 'Adding aggregated stats data done!' });
+        await query(addAggregatedStatsData(S3_OUTPUT_BUCKET_NAME!, S3_OUTPUT_PREFIX!, yesterdayDate, yesterdayDate));
+        requestLogger.debug({ message: 'Adding aggregated stats data done!' });
+      }
+    } catch (aggregationErr: any) {
+      requestLogger.warn({ message: 'Aggregation skipped (no source data yet — likely first run)', error: aggregationErr?.message });
+      await query(`CREATE TABLE ${databaseName}.aggregated_stats (
+        domain_name VARCHAR,
+        event_date DATE,
+        event_hour INTEGER,
+        edge_city VARCHAR,
+        edge_country VARCHAR,
+        edge_latitude FLOAT,
+        edge_longitude FLOAT,
+        referrer_domain_name VARCHAR,
+        browser_name VARCHAR,
+        browser_os_name VARCHAR,
+        device_type VARCHAR,
+        device_vendor VARCHAR,
+        utm_source VARCHAR,
+        utm_campaign VARCHAR,
+        utm_medium VARCHAR,
+        utm_content VARCHAR,
+        utm_term VARCHAR,
+        request_path VARCHAR,
+        page_views_cnt INTEGER,
+        visitor_cnt INTEGER,
+        bounce_cnt INTEGER,
+        visit_duration_sec_avg INTEGER
+      )`);
+    }
 
+    // Detach temporary database if it was attached
+    if (hasExistingData) {
       await query(`DETACH "${temporaryDatabaseName}"`); // IMPORTANT: Must use double quotes due to DuckDB "bug"
     }
 

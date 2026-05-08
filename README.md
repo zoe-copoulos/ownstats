@@ -14,5 +14,44 @@ The current version of Ownstats is described (and further developed) in a series
 * A local installation of [Serverless Framework v3 (not v4!)](https://www.serverless.com/framework/docs/getting-started/)
 * A local installation of [npm](https://docs.npmjs.com/cli/v11/commands/npm)
 
+## Quick Start
+
+> **Note:** The commands below reflect the current CLI behavior. Some examples in the external docs at [docs.ownstats.com](https://docs.ownstats.com) use outdated syntax.
+
+```bash
+# Install the CLI
+npm install -g ownstats
+
+# Bootstrap a local installation
+ownstats installation create -d -p ~/ -n ownstats-installation
+cd ~/ownstats-installation
+
+# Configure (note: aws-region, aws-stage, aws-profile — not region/stage/profile)
+ownstats config set aws-region us-east-1
+ownstats config set aws-profile my-profile
+ownstats config set aws-stage prd
+
+# Deploy backend (note: verb before target — not "ownstats stack backend deploy")
+ownstats stack install backend
+ownstats stack deploy backend
+
+# Hydrate config from CloudFormation outputs (required before frontend/client steps)
+cd <path-to-this-repo>/backend && npm run hydrate && cd -
+
+# Build and deploy frontend
+ownstats stack install frontend
+ownstats stack build frontend
+ownstats stack sync frontend
+
+# Build and deploy client
+ownstats stack install client
+ownstats stack build client
+ownstats stack sync client
+
+# Create a user and open the dashboard
+ownstats user create
+ownstats stack open frontend
+```
+
 ## Documentation
 The documentation for the current version of Ownstats is available at [docs.ownstats.com](https://docs.ownstats.com).

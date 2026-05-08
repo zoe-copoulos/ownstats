@@ -5,7 +5,8 @@
   "scripts": {
     "cfn-lint": "cfn-lint .serverless/cloudformation-template-update-stack.json",
     "package": "sls package",
-    "qa": "npm run package && npm run cfn-lint"
+    "qa": "npm run package && npm run cfn-lint",
+    "hydrate": "node scripts/hydrate-config.mjs"
   },
   "repository": {
     "type": "git",

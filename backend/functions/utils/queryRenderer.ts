@@ -387,5 +387,5 @@ export const createEventAggregation = (inputBucketName: string, outputBucketName
 }
 
 export const dropSessionAggregation = (eventDate: string): string => {
-  return clean(`drop table session_aggregation_${eventDate.replace(/-/g, '_')};`);
+  return clean(`drop table if exists session_aggregation_${eventDate.replace(/-/g, '_')};`);
 }
