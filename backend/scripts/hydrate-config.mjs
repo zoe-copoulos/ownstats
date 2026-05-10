@@ -16,6 +16,7 @@ const OUTPUT_MAP = [
   { key: 'FrontendBucketName',                      path: ['frontend', 'cdnBucketName'] },
   { key: 'FrontendCloudFrontDistributionId',         path: ['frontend', 'cdnDistributionId'] },
   { key: 'FrontendCloudFrontDistributionDomainName', path: ['frontend', 'domainName'] },
+  { key: 'FrontendCloudFrontDistributionDomainName', path: ['frontend', 'cdnDomainName'] },
   { key: 'DistributionBucketName',                   path: ['backend', 'cdnBucketName'] },
   { key: 'CloudFrontDistributionId',                 path: ['backend', 'cdnDistributionId'] },
   { key: 'CloudFrontDistributionDomainName',         path: ['backend', 'cdnDomainName'] },
@@ -45,9 +46,14 @@ async function main() {
     process.exit(1);
   }
 
-  if (profile) {
+  const hasEnvCredentials =
+    process.env.AWS_ACCESS_KEY_ID &&
+    process.env.AWS_SECRET_ACCESS_KEY;
+
+  if (profile && !hasEnvCredentials) {
     AWS.config.credentials = new AWS.SharedIniFileCredentials({ profile });
   }
+
   AWS.config.region = region;
 
   const cf = new AWS.CloudFormation();
