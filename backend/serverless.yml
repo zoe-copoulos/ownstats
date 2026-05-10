@@ -144,7 +144,7 @@ functions:
   aggregateStats:
     runtime: nodejs18.x
     handler: functions/querying/aggregateStats.handler
-    memorySize: 4096
+    memorySize: 3008
     timeout: 900
     iamRoleStatements:
       - Effect: Allow
@@ -193,7 +193,7 @@ functions:
   aggregateHourlyStats:
     runtime: nodejs18.x
     handler: functions/querying/aggregateHourlyStats.handler
-    memorySize: 4096
+    memorySize: 3008
     timeout: 900
     iamRoleStatements:
       - Effect: Allow
@@ -242,7 +242,7 @@ functions:
   streamingQuery:
     runtime: nodejs18.x
     handler: functions/querying/streamingQuery.handler
-    memorySize: 10240
+    memorySize: 3008
     timeout: 120
     iamRoleStatements:
       - Effect: Allow
