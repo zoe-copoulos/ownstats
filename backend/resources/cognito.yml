@@ -101,6 +101,12 @@ Resources:
                 Condition:
                   StringEquals:
                     lambda:FunctionUrlAuthType: 'AWS_IAM'
+              # Invoke Lambda function backing the Function URL
+              - Effect: 'Allow'
+                Action:
+                  - 'lambda:InvokeFunction'
+                Resource:
+                  - !GetAtt StreamingQueryLambdaFunction.Arn
               # Directly read DuckDB database from S3
               - Effect: Allow
                 Action:

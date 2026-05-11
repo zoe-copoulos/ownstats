@@ -293,7 +293,7 @@ functions:
           - x-amz-content-sha256
         allowedMethods:
           - POST
-          - OPTIONS
+          # - OPTIONS
         maxAge: 86400
 
   createDomain:
