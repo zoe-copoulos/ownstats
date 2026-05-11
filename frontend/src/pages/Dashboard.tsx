@@ -111,10 +111,7 @@ export default function Dashboard() {
   // See https://arrow.apache.org/docs/12.0/js/modules/Arrow_dom.html
   // See https://github.com/apache/arrow/blob/6af660f48/js/src/table.ts
   const getStreamData = async (db: AsyncDuckDB, enableTiming: boolean = false): Promise<void> => {
-    // Connect to db
-    const cid = await db.connectInternal();
-
-    await queryManager.runQuery(`USE data;`);
+    let cid: number | undefined;
 
     // Store timer
     let startTimestamp = new Date().getTime();
@@ -123,8 +120,15 @@ export default function Dashboard() {
 
     // Set query start timestamp
     setQueryStartTimestamp(startTimestamp)
-  
+
     try {
+      // Connect to db — must be inside try so the finally cleanup always matches an actual connect
+      cid = await db.connectInternal();
+
+      if (isDatabaseAttached()) {
+        await queryManager.runQuery(`USE data;`);
+      }
+
       const aborter = new AbortController();
 
       // Set fetch options
@@ -148,7 +152,7 @@ export default function Dashboard() {
         sessionToken: credentials?.sessionToken!, // IMPORTANT!
         region: ownstatsConfig.region,
         service: "lambda",
-        retries: 0, // Don't retry, fail fast if something goes wrong 
+        retries: 0, // Don't retry, fail fast if something goes wrong
       });
 
       // See: https://developer.mozilla.org/en-US/docs/Web/API/Streams_API/Using_readable_streams
@@ -165,7 +169,7 @@ export default function Dashboard() {
         // Set stream loaded flag
         setIsStreamLoaded(false);
         // Throw error
-        throw new Error(`Failed to load current data!`);
+        throw new Error(`Failed to load current data! (HTTP ${streamResponse.status})`);
       } else {
         // Get stream reader for reading the response
         const streamReader = streamResponse.body!.getReader();
@@ -187,7 +191,7 @@ export default function Dashboard() {
 
         // IMPORTANT: Add EOS (End-Of-Stream) message!
         ipcPromises.push(db.insertArrowFromIPCStream(cid, new Uint8Array([255, 255, 255, 255, 0, 0, 0, 0]), { name: "today_stats", create: true }))
-        
+
         // Await all promises
         await Promise.all(ipcPromises);
 
@@ -199,13 +203,13 @@ export default function Dashboard() {
     } catch (e: any) {
       console.log(e);
       toast.error(`Loading current data... Error!`, { description: e.message });
+    } finally {
+      // Stop timer
+      if (enableTiming && startTimestamp) setQueryDuration((new Date().getTime() - startTimestamp));
+
+      // Disconnect only if a connection was actually opened
+      if (cid !== undefined) db.disconnect(cid);
     }
-
-    // Stop timer
-    if (enableTiming && startTimestamp) setQueryDuration((new Date().getTime() - startTimestamp));
-
-    // Disconnect
-    db.disconnect(cid);
   };
 
   const downloadAsCSV = async () => {

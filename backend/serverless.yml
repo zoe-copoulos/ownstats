@@ -279,7 +279,22 @@ functions:
     url:
       invokeMode: RESPONSE_STREAM
       authorizer: aws_iam
-      cors: true
+      cors:
+        allowedOrigins:
+          - '*'
+        allowedHeaders:
+          - content-type
+          - x-amz-date
+          - authorization
+          - x-api-key
+          - x-amz-security-token
+          - x-amz-user-agent
+          - x-amzn-trace-id
+          - x-amz-content-sha256
+        allowedMethods:
+          - POST
+          - OPTIONS
+        maxAge: 86400
 
   createDomain:
     handler: functions/api/createDomain.handler
